@@ -1,6 +1,6 @@
-// src/components/FeelingInput.jsx
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import logo from '../assets/Justtree.png'
 
 function FeelingInput() {
   const [feeling, setFeeling] = useState('')
@@ -8,32 +8,94 @@ function FeelingInput() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Store the feeling in localStorage for now
     localStorage.setItem('userFeeling', feeling)
     navigate('/tongue-photo')
   }
 
+  const logoStyle = {
+    width: '120px',
+    height: 'auto',
+    marginBottom: '20px'
+  }
+
+
+
+  const titleStyle = {
+    fontSize: '48px',
+    fontWeight: 'bold',
+    color: '#98fb98', // Pale green
+    marginBottom: '10px',
+    textAlign: 'center'
+  }
+
+  const subtitleStyle = {
+    fontSize: '17px',
+    color: '#bfbdbd', // Pale green
+    marginBottom: '40px',
+    textAlign: 'center'
+  }
+
+  const formStyle = {
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '20px'
+  }
+
+  const textareaStyle = {
+    width: '100%',
+    minHeight: '200px',
+    padding: '1rem',
+    borderRadius: '8px',
+    border: '2px solid #98fb98',
+    fontSize: '16px',
+    backgroundColor: '#2a2a2a',
+    color: '#98fb98',
+    outline: 'none'
+  }
+
+  const buttonStyle = {
+    backgroundColor: '#2a2a2a',
+    color: '#98fb98',
+    padding: '10px 30px',
+    borderRadius: '8px',
+    border: '2px solid #98fb98',
+    fontSize: '16px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  }
+
   return (
-    <div className="max-w-2xl mx-auto">
-      <h2 className="text-xl mb-4 text-center">我帮您寻找最配合您的茶！</h2>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <textarea
+    <>
+      <img src={logo} alt="Tea Guru Logo" style={logoStyle} />
+      <h1 style={titleStyle}>Tea Guru</h1>
+      <h2 style={subtitleStyle}>我可以帮你中医辨证、舌诊、养生搭配，请把你的要求告诉我吧!</h2>
+      
+      <form onSubmit={handleSubmit} style={formStyle}>
+        <textarea 
           value={feeling}
           onChange={(e) => setFeeling(e.target.value)}
-          className="w-full h-40 p-4 border rounded-lg shadow-sm focus:ring-2 focus:ring-emerald-500"
+          style={textareaStyle}
           placeholder="Please describe how you're feeling..."
           required
         />
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Next
-          </button>
-        </div>
+        <button 
+          type="submit" 
+          style={buttonStyle}
+          onMouseOver={e => {
+            e.currentTarget.style.backgroundColor = '#98fb98'
+            e.currentTarget.style.color = '#1a1a1a'
+          }}
+          onMouseOut={e => {
+            e.currentTarget.style.backgroundColor = '#2a2a2a'
+            e.currentTarget.style.color = '#98fb98'
+          }}
+        >
+          Next
+        </button>
       </form>
-    </div>
+    </>
   )
 }
 

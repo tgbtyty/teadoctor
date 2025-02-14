@@ -2,7 +2,7 @@
 export function Container({ className, ...props }) {
     return (
       <div
-        className={`container mx-auto px-4 max-w-6xl ${className}`}
+        className={`w-full max-w-7xl mx-auto px-4 flex flex-col items-center ${className}`}
         {...props}
       />
     )

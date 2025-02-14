@@ -1,6 +1,6 @@
-// src/components/TonguePhoto.jsx
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Camera, Upload } from 'lucide-react'
 
 function TonguePhoto() {
   const [imageFile, setImageFile] = useState(null)
@@ -19,7 +19,6 @@ function TonguePhoto() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (imageFile) {
-      // Store the image in localStorage as base64 for now
       const reader = new FileReader()
       reader.onloadend = () => {
         localStorage.setItem('tongueImage', reader.result)
@@ -32,8 +31,6 @@ function TonguePhoto() {
   const handleCapture = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      // Implementation for camera capture would go here
-      // For now, just trigger file input
       fileInputRef.current.click()
     } catch (err) {
       console.error('Error accessing camera:', err)
@@ -41,49 +38,137 @@ function TonguePhoto() {
     }
   }
 
+  const containerStyle = {
+    width: '100%',
+    maxWidth: '600px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '20px'
+  }
+
+  const titleStyle = {
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#047857',
+    marginBottom: '30px',
+    textAlign: 'center'
+  }
+
+  const buttonBaseStyle = {
+    width: '250px',
+    padding: '12px 20px',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    cursor: 'pointer',
+    border: 'none',
+    fontSize: '16px',
+    transition: 'all 0.2s ease'
+  }
+
+  const primaryButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: '#047857',
+    color: 'white',
+  }
+
+  const secondaryButtonStyle = {
+    ...buttonBaseStyle,
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+    border: '1px solid #d1d5db'
+  }
+
+  const dividerStyle = {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px',
+    margin: '20px 0'
+  }
+
+  const lineStyle = {
+    flex: 1,
+    height: '1px',
+    backgroundColor: '#d1d5db'
+  }
+
+  const previewContainerStyle = {
+    width: '100%',
+    marginTop: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '20px'
+  }
+
+  const imagePreviewStyle = {
+    width: '100%',
+    maxHeight: '400px',
+    objectFit: 'contain',
+    borderRadius: '8px',
+    border: '2px solid #047857'
+  }
+
   return (
-    <div className="max-w-2xl mx-auto">
-      <h2 className="text-xl mb-4 text-center">Tongue Analysis</h2>
-      <div className="space-y-6">
-        <div className="flex flex-col items-center gap-4">
-          <button
-            onClick={handleCapture}
-            className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-          >
-            Take Photo
-          </button>
-          <span className="text-gray-500">or</span>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*"
-            className="hidden"
+    <div style={containerStyle}>
+      <h2 style={titleStyle}>Tongue Analysis</h2>
+      
+      <button 
+        onClick={handleCapture}
+        style={primaryButtonStyle}
+        onMouseOver={e => e.currentTarget.style.backgroundColor = '#065f46'}
+        onMouseOut={e => e.currentTarget.style.backgroundColor = '#047857'}
+      >
+        <Camera size={20} />
+        <span>Take Photo</span>
+      </button>
+      
+      <div style={dividerStyle}>
+        <div style={lineStyle}></div>
+        <span style={{ color: '#6b7280', fontWeight: 500 }}>or</span>
+        <div style={lineStyle}></div>
+      </div>
+      
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        style={{ display: 'none' }}
+      />
+      
+      <button 
+        onClick={() => fileInputRef.current.click()}
+        style={secondaryButtonStyle}
+        onMouseOver={e => e.currentTarget.style.backgroundColor = '#e5e7eb'}
+        onMouseOut={e => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+      >
+        <Upload size={20} />
+        <span>Upload Photo</span>
+      </button>
+
+      {previewUrl && (
+        <div style={previewContainerStyle}>
+          <img
+            src={previewUrl}
+            alt="Preview"
+            style={imagePreviewStyle}
           />
-          <button
-            onClick={() => fileInputRef.current.click()}
-            className="bg-gray-200 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+          
+          <button 
+            onClick={handleSubmit}
+            style={primaryButtonStyle}
+            onMouseOver={e => e.currentTarget.style.backgroundColor = '#065f46'}
+            onMouseOut={e => e.currentTarget.style.backgroundColor = '#047857'}
           >
-            Upload Photo
+            Continue
           </button>
         </div>
-
-        {previewUrl && (
-          <div className="mt-4">
-            <img
-              src={previewUrl}
-              alt="Preview"
-              className="max-w-full h-auto rounded-lg shadow-lg"
-            />
-            <button
-              onClick={handleSubmit}
-              className="mt-4 bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
-            >
-              Continue
-            </button>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   )
 }
