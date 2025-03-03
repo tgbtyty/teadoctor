@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import OpenAI from 'openai'
 import LoadingAnimation from './LoadingAnimation'
 import defaultHerbImage from '../assets/chineseherb.PNG'
 import logo from '../assets/Justtree.png'
+
+// API base URL - will come from environment variables
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 function Results() {
   const [analysis, setAnalysis] = useState(null)
@@ -109,35 +111,25 @@ function Results() {
           throw new Error('Missing required information')
         }
 
-        const openai = new OpenAI({
-          apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-          dangerouslyAllowBrowser: true
-        });
+        // Make a request to our backend API instead of calling OpenAI directly
+        const response = await fetch(`${API_BASE_URL}/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userFeeling,
+            tongueImage
+          }),
+        })
 
-        const response = await openai.chat.completions.create({
-          model: "chatgpt-4o-latest",
-          messages: [
-            {
-              role: "system",
-              content: "You are a chinese classical medicine doctor (中医）, who works at an herbal tea shop. When a customer comes in, they will present details about how they are feeling and a picture of their tongue.\n\nYour job will be to recommend one or more chinese herbal medicines to made into an herbal tea drink for the customer given their conditions! You can also help the customer understand why they are being recommended each product in good detail! Give the entire response in chinese. Recommend them in \"君臣佐世\" style.\n\nMake sure you properly analyze the picture of the tongue! No need to mention tea, these ingredients will be made into tea anyways! Write a nice long description of each ingredient you recommend, detailing why this specific ingredient will be beneficial to the customer.\n\nReturn your response as a JSON object with the following structure and NO OTHER TEXT:\n{\n  \"patientOverview\": {\n    \"primaryConcerns\": \"Description of main health concerns based on symptoms and tongue\",\n    \"tongueAnalysis\": \"Detailed analysis of tongue characteristics\",\n    \"recommendationBasis\": \"Explanation of overall treatment strategy\"\n  },\n  \"herbalFormula\": {\n    \"emperor\": {\n      \"herb\": \"Name of the emperor herb\",\n      \"traditional_name\": \"Chinese name\",\n      \"role\": \"Detailed explanation of why this herb is chosen as the emperor\",\n      \"specific_benefits\": \"How this addresses the patient's main concern\"\n    },\n    \"minister\": {\n      \"herb\": \"Name of the minister herb\",\n      \"traditional_name\": \"Chinese name\",\n      \"role\": \"Detailed explanation of why this herb is chosen as the minister\",\n      \"specific_benefits\": \"How this supports the emperor herb and addresses secondary concerns\"\n    },\n    \"assistant\": {\n      \"herb\": \"Name of the assistant herb\",\n      \"traditional_name\": \"Chinese name\",\n      \"role\": \"Detailed explanation of why this herb is chosen as the assistant\",\n      \"specific_benefits\": \"How this moderates or supports the formula\"\n    },\n    \"courier\": {\n      \"herb\": \"Name of the courier herb\",\n      \"traditional_name\": \"Chinese name\",\n      \"role\": \"Detailed explanation of why this herb is chosen as the courier\",\n      \"specific_benefits\": \"How this helps deliver or harmonize the formula\"\n    }\n  }\n}"
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: userFeeling },
-                { type: "image_url", image_url: { url: tongueImage } }
-              ]
-            }
-          ],
-          response_format: { type: "json_object" },
-          temperature: 1,
-          max_tokens: 7070,
-          top_p: 1,
-          frequency_penalty: 0,
-          presence_penalty: 0
-        });
+        // Check if response is ok
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Error analyzing data');
+        }
 
-        const parsedAnalysis = JSON.parse(response.choices[0].message.content);
+        const parsedAnalysis = await response.json();
         setAnalysis(parsedAnalysis);
       } catch (err) {
         console.error('Analysis error:', err)
