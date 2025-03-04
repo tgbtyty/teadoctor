@@ -77,7 +77,7 @@ function FeelingInput() {
           value={feeling}
           onChange={(e) => setFeeling(e.target.value)}
           style={textareaStyle}
-          placeholder="Please describe how you're feeling..."
+          placeholder="请把你的要求告诉我..."
           required
         />
         <button 
@@ -92,7 +92,7 @@ function FeelingInput() {
             e.currentTarget.style.color = '#98fb98'
           }}
         >
-          Next
+          下一步
         </button>
       </form>
     </>
