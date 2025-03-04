@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import LoadingAnimation from './LoadingAnimation'
 import defaultHerbImage from '../assets/chineseherb.PNG'
@@ -12,6 +12,9 @@ function Results() {
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
   const [tongueImage, setTongueImage] = useState(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const tongueImageRef = useRef(null)
+  const tongueCanvasRef = useRef(null)
   const navigate = useNavigate()
 
   const containerStyle = {
@@ -110,10 +113,9 @@ function Results() {
 
   const tongueImageStyle = {
     width: '100%',
-    height: '300px',
+    maxHeight: '300px',
     objectFit: 'contain',
     borderRadius: '10px 10px 0 0',
-    position: 'relative',
     background: '#000',
     display: 'block'
   }
@@ -121,12 +123,11 @@ function Results() {
   const tongueOverlayContainerStyle = {
     position: 'relative',
     width: '100%',
-    height: '300px',
     borderRadius: '10px 10px 0 0',
     overflow: 'hidden'
   }
 
-  const tongueOverlayStyle = {
+  const tongueCanvasStyle = {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -152,13 +153,222 @@ function Results() {
     
     @keyframes pulse {
       0%, 100% {
-        opacity: 0.5;
+        opacity: 0.3;
       }
       50% {
         opacity: 0.8;
       }
     }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .scanner-line {
+      position: absolute;
+      left: 0;
+      height: 2px;
+      width: 100%;
+      background: linear-gradient(90deg, rgba(152, 251, 152, 0) 0%, rgba(152, 251, 152, 0.8) 50%, rgba(152, 251, 152, 0) 100%);
+      animation: scanLine 3s linear infinite;
+      z-index: 2;
+    }
+
+    .tongue-points {
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .annotation-line {
+      animation: fadeIn 1s ease-out forwards;
+      stroke-dasharray: 5,3;
+    }
   `;
+
+  // Draw the tongue analysis overlay on top of the image
+  const drawTongueAnalysisOverlay = () => {
+    if (!tongueImageRef.current || !tongueCanvasRef.current || !imageLoaded) return;
+    
+    const img = tongueImageRef.current;
+    const canvas = tongueCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas dimensions to match the image's display size
+    canvas.width = img.clientWidth;
+    canvas.height = img.clientHeight;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Create a semi-intelligent tongue detection area
+    // This creates a more realistic-looking "analysis" by adapting to the image proportions
+    
+    // Calculate the center area of the image (where the tongue is likely to be)
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const centerX = imgWidth / 2;
+    const centerY = imgHeight / 2;
+    
+    // For the main analysis area, make an oval shape targeted at the center of the image
+    // Adapt sizes based on image orientation
+    const isWide = imgWidth > imgHeight;
+    
+    // Create a tongue-like shape
+    const tongueWidth = isWide ? imgWidth * 0.45 : imgWidth * 0.6;
+    const tongueHeight = isWide ? imgHeight * 0.7 : imgHeight * 0.5;
+    
+    // Draw tongue outline (slightly oval, tongue-like shape)
+    ctx.beginPath();
+    // Draw a rounded-top tongue shape
+    ctx.moveTo(centerX - tongueWidth/2, centerY + tongueHeight/3);
+    ctx.bezierCurveTo(
+      centerX - tongueWidth/2, centerY - tongueHeight/2,
+      centerX + tongueWidth/2, centerY - tongueHeight/2,
+      centerX + tongueWidth/2, centerY + tongueHeight/3
+    );
+    // Draw the bottom round part of the tongue
+    ctx.bezierCurveTo(
+      centerX + tongueWidth/2, centerY + tongueHeight*0.8,
+      centerX - tongueWidth/2, centerY + tongueHeight*0.8,
+      centerX - tongueWidth/2, centerY + tongueHeight/3
+    );
+    
+    // Style the tongue outline
+    ctx.strokeStyle = 'rgba(152, 251, 152, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Add pulse effect to the tongue area
+    ctx.fillStyle = 'rgba(152, 251, 152, 0.1)';
+    ctx.fill();
+    
+    // Add analysis points
+    const pointSize = Math.min(imgWidth, imgHeight) * 0.01;
+    const pointSpacing = Math.min(imgWidth, imgHeight) * 0.06;
+    
+    for (let i = -3; i <= 3; i++) {
+      for (let j = -1; j <= 2; j++) {
+        if (Math.random() > 0.3) {  // Skip some points randomly
+          const x = centerX + i * pointSpacing + (Math.random() - 0.5) * pointSpacing;
+          const y = centerY + j * pointSpacing + (Math.random() - 0.5) * pointSpacing;
+          
+          // Skip points too far from the tongue shape
+          const distFromCenterX = (x - centerX) / (tongueWidth/2);
+          const distFromCenterY = (y - centerY) / (tongueHeight/2);
+          const ellipticalDist = distFromCenterX * distFromCenterX + distFromCenterY * distFromCenterY;
+          
+          if (ellipticalDist < 1) {
+            ctx.beginPath();
+            ctx.arc(x, y, pointSize, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(152, 251, 152, 0.8)';
+            ctx.fill();
+          }
+        }
+      }
+    }
+    
+    // Add analysis cross-lines
+    const numLines = 4;
+    for (let i = 0; i < numLines; i++) {
+      const startX = centerX - tongueWidth * 0.4;
+      const startY = centerY - tongueHeight * 0.3 + (i * tongueHeight * 0.6 / (numLines - 1));
+      const endX = centerX + tongueWidth * 0.4;
+      const endY = startY;
+      
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.strokeStyle = 'rgba(152, 251, 152, 0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 2]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    
+    // Add some annotations around the tongue
+    // Top annotation
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - tongueHeight * 0.4);
+    ctx.lineTo(centerX, centerY - tongueHeight * 0.6);
+    ctx.lineTo(centerX + 50, centerY - tongueHeight * 0.6);
+    ctx.strokeStyle = 'rgba(152, 251, 152, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    ctx.font = '10px Arial';
+    ctx.fillStyle = 'rgba(152, 251, 152, 0.8)';
+    ctx.fillText('舌尖', centerX + 55, centerY - tongueHeight * 0.6 + 3);
+    
+    // Side annotation
+    ctx.beginPath();
+    ctx.moveTo(centerX + tongueWidth * 0.4, centerY);
+    ctx.lineTo(centerX + tongueWidth * 0.6, centerY);
+    ctx.lineTo(centerX + tongueWidth * 0.6, centerY + 30);
+    ctx.stroke();
+    
+    ctx.fillText('舌苔', centerX + tongueWidth * 0.6 + 5, centerY + 33);
+    
+    // Add technical overlay elements
+    // Corner markers
+    const markerSize = Math.min(imgWidth, imgHeight) * 0.03;
+    
+    // Top-left
+    ctx.beginPath();
+    ctx.moveTo(markerSize, markerSize);
+    ctx.lineTo(markerSize*2, markerSize);
+    ctx.moveTo(markerSize, markerSize);
+    ctx.lineTo(markerSize, markerSize*2);
+    ctx.strokeStyle = 'rgba(152, 251, 152, 0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    
+    // Top-right
+    ctx.beginPath();
+    ctx.moveTo(imgWidth - markerSize, markerSize);
+    ctx.lineTo(imgWidth - markerSize*2, markerSize);
+    ctx.moveTo(imgWidth - markerSize, markerSize);
+    ctx.lineTo(imgWidth - markerSize, markerSize*2);
+    ctx.stroke();
+    
+    // Bottom-left
+    ctx.beginPath();
+    ctx.moveTo(markerSize, imgHeight - markerSize);
+    ctx.lineTo(markerSize*2, imgHeight - markerSize);
+    ctx.moveTo(markerSize, imgHeight - markerSize);
+    ctx.lineTo(markerSize, imgHeight - markerSize*2);
+    ctx.stroke();
+    
+    // Bottom-right
+    ctx.beginPath();
+    ctx.moveTo(imgWidth - markerSize, imgHeight - markerSize);
+    ctx.lineTo(imgWidth - markerSize*2, imgHeight - markerSize);
+    ctx.moveTo(imgWidth - markerSize, imgHeight - markerSize);
+    ctx.lineTo(imgWidth - markerSize, imgHeight - markerSize*2);
+    ctx.stroke();
+    
+    // Add data displays
+    ctx.font = '9px Arial';
+    ctx.fillStyle = 'rgba(152, 251, 152, 0.8)';
+    ctx.fillText('舌诊分析', markerSize, markerSize - 5);
+    ctx.fillText('AI 图像识别', imgWidth - markerSize - 80, imgHeight - markerSize + 15);
+    
+    // Add scan line (this is done with CSS animation)
+    const scanLine = document.createElement('div');
+    scanLine.className = 'scanner-line';
+    const overlay = document.getElementById('tongue-overlay-container');
+    if (overlay) {
+      // Remove any existing scan lines
+      const existingLines = overlay.getElementsByClassName('scanner-line');
+      Array.from(existingLines).forEach(line => line.remove());
+      
+      // Add the new scan line
+      overlay.appendChild(scanLine);
+    }
+  };
 
   useEffect(() => {
     const analyzeData = async () => {
@@ -204,6 +414,21 @@ function Results() {
     analyzeData()
   }, [])
 
+  // Effect to draw the tongue analysis overlay when the image is loaded
+  useEffect(() => {
+    if (imageLoaded) {
+      drawTongueAnalysisOverlay();
+      
+      // Update the overlay on window resize
+      const handleResize = () => drawTongueAnalysisOverlay();
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, [imageLoaded]);
+
   if (loading) return <LoadingAnimation />
 
   if (error) {
@@ -242,57 +467,18 @@ function Results() {
 
       {/* Tongue Diagnosis Box */}
       <div style={tongueBoxStyle}>
-        <div style={tongueOverlayContainerStyle}>
+        <div style={tongueOverlayContainerStyle} id="tongue-overlay-container">
           <img 
+            ref={tongueImageRef}
             src={tongueImage} 
             alt="Tongue Image" 
             style={tongueImageStyle}
+            onLoad={() => setImageLoaded(true)}
           />
-          <svg 
-            style={tongueOverlayStyle} 
-            width="100%" 
-            height="100%" 
-            viewBox="0 0 100 100" 
-            preserveAspectRatio="none"
-          >
-            {/* Animated scanner line */}
-            <line 
-              x1="0" 
-              y1="50" 
-              x2="100" 
-              y2="50" 
-              stroke="#98fb98" 
-              strokeWidth="0.5" 
-              strokeDasharray="2,1"
-              style={{ 
-                animation: 'scanLine 2s linear infinite',
-                position: 'absolute',
-                top: '0'
-              }}
-            />
-            
-            {/* Target area highlight - roughly centered around likely tongue position */}
-            <circle 
-              cx="50" 
-              cy="50" 
-              r="30" 
-              fill="none" 
-              stroke="#98fb98" 
-              strokeWidth="0.8" 
-              strokeDasharray="3,1"
-              style={{ animation: 'pulse 2s ease-in-out infinite' }} 
-            />
-            
-            {/* Corner brackets */}
-            <path d="M 5,5 L 5,15 M 5,5 L 15,5" stroke="#98fb98" strokeWidth="1" />
-            <path d="M 95,5 L 95,15 M 95,5 L 85,5" stroke="#98fb98" strokeWidth="1" />
-            <path d="M 5,95 L 5,85 M 5,95 L 15,95" stroke="#98fb98" strokeWidth="1" />
-            <path d="M 95,95 L 95,85 M 95,95 L 85,95" stroke="#98fb98" strokeWidth="1" />
-            
-            {/* Data points */}
-            <text x="3" y="3" fontSize="3" fill="#98fb98">舌诊分析</text>
-            <text x="80" y="97" fontSize="2.5" fill="#98fb98">AI 图像识别</text>
-          </svg>
+          <canvas 
+            ref={tongueCanvasRef}
+            style={tongueCanvasStyle}
+          />
         </div>
         <div style={tongueContentStyle}>
           <h2 style={sectionTitleStyle}>舌象分析</h2>
