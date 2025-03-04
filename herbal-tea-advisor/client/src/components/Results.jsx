@@ -11,6 +11,7 @@ function Results() {
   const [analysis, setAnalysis] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [tongueImage, setTongueImage] = useState(null)
   const navigate = useNavigate()
 
   const containerStyle = {
@@ -101,17 +102,78 @@ function Results() {
     transition: 'all 0.2s ease'
   }
 
+  // Added tongue diagnosis box styling
+  const tongueBoxStyle = {
+    ...boxStyle,
+    padding: '0',
+  }
+
+  const tongueImageStyle = {
+    width: '100%',
+    height: '300px',
+    objectFit: 'contain',
+    borderRadius: '10px 10px 0 0',
+    position: 'relative',
+    background: '#000',
+    display: 'block'
+  }
+
+  const tongueOverlayContainerStyle = {
+    position: 'relative',
+    width: '100%',
+    height: '300px',
+    borderRadius: '10px 10px 0 0',
+    overflow: 'hidden'
+  }
+
+  const tongueOverlayStyle = {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none'
+  }
+
+  const tongueContentStyle = {
+    padding: '20px'
+  }
+
+  // Generate a "scanning" animation effect
+  const scannerAnimation = `
+    @keyframes scanLine {
+      0% {
+        top: 0%;
+      }
+      100% {
+        top: 100%;
+      }
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 0.5;
+      }
+      50% {
+        opacity: 0.8;
+      }
+    }
+  `;
+
   useEffect(() => {
     const analyzeData = async () => {
       try {
         const userFeeling = localStorage.getItem('userFeeling')
-        const tongueImage = localStorage.getItem('tongueImage')
+        const tongueImageData = localStorage.getItem('tongueImage')
 
-        if (!userFeeling || !tongueImage) {
+        if (!userFeeling || !tongueImageData) {
           throw new Error('Missing required information')
         }
 
-        // Make a request to our backend API instead of calling OpenAI directly
+        // Store the tongue image for displaying
+        setTongueImage(tongueImageData)
+
+        // Make a request to our backend API
         const response = await fetch(`${API_BASE_URL}/analyze`, {
           method: 'POST',
           headers: {
@@ -119,7 +181,7 @@ function Results() {
           },
           body: JSON.stringify({
             userFeeling,
-            tongueImage
+            tongueImage: tongueImageData
           }),
         })
 
@@ -171,8 +233,72 @@ function Results() {
 
   return (
     <div style={containerStyle}>
+      <style>
+        {scannerAnimation}
+      </style>
+      
       <img src={logo} alt="Tea Guru Logo" style={logoStyle} />
       <h1 style={titleStyle}>Tea Guru</h1>
+
+      {/* Tongue Diagnosis Box */}
+      <div style={tongueBoxStyle}>
+        <div style={tongueOverlayContainerStyle}>
+          <img 
+            src={tongueImage} 
+            alt="Tongue Image" 
+            style={tongueImageStyle}
+          />
+          <svg 
+            style={tongueOverlayStyle} 
+            width="100%" 
+            height="100%" 
+            viewBox="0 0 100 100" 
+            preserveAspectRatio="none"
+          >
+            {/* Animated scanner line */}
+            <line 
+              x1="0" 
+              y1="50" 
+              x2="100" 
+              y2="50" 
+              stroke="#98fb98" 
+              strokeWidth="0.5" 
+              strokeDasharray="2,1"
+              style={{ 
+                animation: 'scanLine 2s linear infinite',
+                position: 'absolute',
+                top: '0'
+              }}
+            />
+            
+            {/* Target area highlight - roughly centered around likely tongue position */}
+            <circle 
+              cx="50" 
+              cy="50" 
+              r="30" 
+              fill="none" 
+              stroke="#98fb98" 
+              strokeWidth="0.8" 
+              strokeDasharray="3,1"
+              style={{ animation: 'pulse 2s ease-in-out infinite' }} 
+            />
+            
+            {/* Corner brackets */}
+            <path d="M 5,5 L 5,15 M 5,5 L 15,5" stroke="#98fb98" strokeWidth="1" />
+            <path d="M 95,5 L 95,15 M 95,5 L 85,5" stroke="#98fb98" strokeWidth="1" />
+            <path d="M 5,95 L 5,85 M 5,95 L 15,95" stroke="#98fb98" strokeWidth="1" />
+            <path d="M 95,95 L 95,85 M 95,95 L 85,95" stroke="#98fb98" strokeWidth="1" />
+            
+            {/* Data points */}
+            <text x="3" y="3" fontSize="3" fill="#98fb98">舌诊分析</text>
+            <text x="80" y="97" fontSize="2.5" fill="#98fb98">AI 图像识别</text>
+          </svg>
+        </div>
+        <div style={tongueContentStyle}>
+          <h2 style={sectionTitleStyle}>舌象分析</h2>
+          <p>{analysis?.patientOverview.tongueAnalysis}</p>
+        </div>
+      </div>
 
       {/* General Analysis Box */}
       <div style={boxStyle}>
@@ -180,10 +306,6 @@ function Results() {
         <div style={{ marginBottom: '15px' }}>
           <h3 style={{ color: '#7dcea0', marginBottom: '8px' }}>基本分析</h3>
           <p>{analysis?.patientOverview.primaryConcerns}</p>
-        </div>
-        <div style={{ marginBottom: '15px' }}>
-          <h3 style={{ color: '#7dcea0', marginBottom: '8px' }}>舌诊分析</h3>
-          <p>{analysis?.patientOverview.tongueAnalysis}</p>
         </div>
         <div>
           <h3 style={{ color: '#7dcea0', marginBottom: '8px' }}>AI建议</h3>

@@ -1,8 +1,29 @@
 import React from 'react';
 
 const LoadingAnimation = () => {
+  const containerStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '32px'
+  };
+
+  const loadingTextStyle = {
+    fontSize: '24px',
+    fontWeight: '600',
+    color: '#98fb98', // Changed to match app theme green
+    marginBottom: '8px'
+  };
+
+  const subtitleStyle = {
+    fontSize: '16px',
+    color: '#bfbdbd', // Light gray color for better contrast
+    textAlign: 'center'
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center p-8">
+    <div style={containerStyle}>
       <style>
         {`
           @keyframes float {
@@ -27,21 +48,21 @@ const LoadingAnimation = () => {
         `}
       </style>
       
-      <div className="relative w-24 h-24 mb-8">
+      <div style={{ position: 'relative', width: '96px', height: '96px', marginBottom: '32px' }}>
         {/* Three floating leaves */}
-        <svg className="leaf absolute top-0 left-0" viewBox="0 0 24 24" width="40" height="40" fill="#98fb98">
+        <svg className="leaf" style={{ position: 'absolute', top: '0', left: '0' }} viewBox="0 0 24 24" width="40" height="40" fill="#98fb98">
           <path d="M17.5,7.2c0,0-4.5-4.5-9.5-1.5s-4,9-4,9s4.5,4.5,9.5,1.5S17.5,7.2,17.5,7.2z"/>
         </svg>
-        <svg className="leaf absolute top-8 left-8" viewBox="0 0 24 24" width="35" height="35" fill="#7dcea0">
+        <svg className="leaf" style={{ position: 'absolute', top: '32px', left: '32px' }} viewBox="0 0 24 24" width="35" height="35" fill="#7dcea0">
           <path d="M17.5,7.2c0,0-4.5-4.5-9.5-1.5s-4,9-4,9s4.5,4.5,9.5,1.5S17.5,7.2,17.5,7.2z"/>
         </svg>
-        <svg className="leaf absolute top-4 left-16" viewBox="0 0 24 24" width="30" height="30" fill="#047857">
+        <svg className="leaf" style={{ position: 'absolute', top: '16px', left: '64px' }} viewBox="0 0 24 24" width="30" height="30" fill="#047857">
           <path d="M17.5,7.2c0,0-4.5-4.5-9.5-1.5s-4,9-4,9s4.5,4.5,9.5,1.5S17.5,7.2,17.5,7.2z"/>
         </svg>
       </div>
 
-      <h2 className="text-2xl font-semibold text-green-600 mb-2">正在分析...</h2>
-      <p className="text-gray-500">请稍等片刻，我们正在为您准备个性化的茶饮推荐</p>
+      <h2 style={loadingTextStyle}>正在分析...</h2>
+      <p style={subtitleStyle}>请稍等片刻，我们正在为您准备个性化的茶饮推荐</p>
     </div>
   );
 };
