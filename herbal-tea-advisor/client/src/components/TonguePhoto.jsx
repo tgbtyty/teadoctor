@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Upload, RotateCw } from 'lucide-react'
+import { Camera, Upload } from 'lucide-react'
 
 function TonguePhoto() {
   const [imageFile, setImageFile] = useState(null)
@@ -39,17 +39,20 @@ function TonguePhoto() {
 
   // Initialize camera when component mounts
   useEffect(() => {
-    startCamera()
+    if (cameraActive) {
+      startCamera()
+    }
     
     // Cleanup function to stop camera when component unmounts
     return () => {
       stopCamera()
     }
-  }, [facingMode]) // Restart camera when facing mode changes
+  }, [cameraActive, facingMode]) // Restart camera when facing mode changes or camera active state changes
 
   const startCamera = async () => {
     try {
       setCameraError(false)
+      stopCamera() // Stop any existing streams first
       
       // Try to access the camera with current facing mode
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -62,11 +65,11 @@ function TonguePhoto() {
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        setCameraActive(true)
       }
     } catch (err) {
       console.error('Error accessing camera:', err)
       setCameraError(true)
+      setCameraActive(false)
     }
   }
   
@@ -91,6 +94,13 @@ function TonguePhoto() {
     
     const video = videoRef.current
     const canvas = canvasRef.current
+    
+    // Wait until video is ready
+    if (video.readyState !== 4) {
+      setTimeout(capturePhoto, 100)
+      return
+    }
+    
     const context = canvas.getContext('2d')
     
     // Set canvas dimensions to match video
@@ -102,155 +112,76 @@ function TonguePhoto() {
     
     // Convert canvas to blob
     canvas.toBlob((blob) => {
-      const file = new File([blob], "tongue-photo.png", { type: "image/png" })
-      setImageFile(file)
-      setPreviewUrl(URL.createObjectURL(file))
-      setCameraActive(false)
-      stopCamera()
+      if (blob) {
+        const file = new File([blob], "tongue-photo.png", { type: "image/png" })
+        setImageFile(file)
+        setPreviewUrl(URL.createObjectURL(file))
+        setCameraActive(false)
+        stopCamera()
+      }
     }, 'image/png')
   }
 
-  // Styles
-  const containerStyle = {
-    width: '100%',
-    maxWidth: '600px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '20px'
-  }
-
-  const titleStyle = {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#047857',
-    marginBottom: '20px',
-    textAlign: 'center'
-  }
-
-  const videoContainerStyle = {
-    width: '100%',
-    position: 'relative',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    border: '2px solid #047857',
-    backgroundColor: '#000'
-  }
-
-  const videoStyle = {
-    width: '100%',
-    height: 'auto',
-    display: 'block',
-    transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' // Mirror front camera
-  }
-
-  const buttonContainerStyle = {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '15px',
-    marginTop: '15px'
-  }
-
-  const actionButtonStyle = {
-    padding: '12px 30px',
-    borderRadius: '8px',
-    backgroundColor: '#047857',
-    color: 'white',
-    border: 'none',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px'
-  }
-
-  const switchCameraButtonStyle = {
-    position: 'absolute',
-    top: '10px',
-    right: '10px',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    color: '#047857',
-    borderRadius: '50%',
-    width: '40px',
-    height: '40px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    cursor: 'pointer',
-    zIndex: 10
-  }
-
-  const uploadContainerStyle = {
-    width: '100%',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'column',
-    gap: '10px',
-    padding: '20px',
-    border: '2px dashed #047857',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(4, 120, 87, 0.1)'
-  }
-
-  const previewContainerStyle = {
-    width: '100%',
-    marginTop: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '20px'
-  }
-
-  const imagePreviewStyle = {
-    width: '100%',
-    maxHeight: '400px',
-    objectFit: 'contain',
-    borderRadius: '8px',
-    border: '2px solid #047857'
-  }
-
   return (
-    <div style={containerStyle}>
-      <h2 style={titleStyle}>舌诊分析</h2>
+    <div style={{
+      width: '100%',
+      maxWidth: '600px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '20px'
+    }}>
+      <h2 style={{
+        fontSize: '24px',
+        fontWeight: 'bold',
+        color: '#047857',
+        marginBottom: '20px',
+        textAlign: 'center'
+      }}>舌诊分析</h2>
       
       {!previewUrl && (
         <>
-          {cameraActive ? (
-            <>
-              <div style={videoContainerStyle}>
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline 
-                  style={videoStyle} 
-                />
-                <button 
-                  onClick={toggleCamera}
-                  style={switchCameraButtonStyle}
-                  title="切换摄像头"
-                >
-                  <RotateCw size={20} />
-                </button>
+          {!cameraActive ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '15px',
+              width: '100%',
+              alignItems: 'center'
+            }}>
+              <button 
+                onClick={() => setCameraActive(true)}
+                style={{
+                  width: '250px',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  border: 'none',
+                  fontSize: '16px',
+                  backgroundColor: '#047857',
+                  color: 'white',
+                }}
+              >
+                <Camera size={20} />
+                <span>拍照</span>
+              </button>
+              
+              <div style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px',
+                margin: '20px 0'
+              }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
+                <span style={{ color: '#6b7280', fontWeight: 500 }}>或</span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#d1d5db' }}></div>
               </div>
               
-              <div style={buttonContainerStyle}>
-                <button 
-                  onClick={capturePhoto}
-                  style={actionButtonStyle}
-                >
-                  <Camera size={20} />
-                  <span>拍照</span>
-                </button>
-              </div>
-            </>
-          ) : cameraError ? (
-            <div style={uploadContainerStyle}>
-              <p style={{color: '#047857', marginBottom: '10px'}}>无法访问摄像头，请上传照片</p>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -258,40 +189,182 @@ function TonguePhoto() {
                 accept="image/*"
                 style={{ display: 'none' }}
               />
+              
               <button 
                 onClick={() => fileInputRef.current.click()}
-                style={actionButtonStyle}
+                style={{
+                  width: '250px',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  border: '1px solid #d1d5db',
+                  fontSize: '16px',
+                  backgroundColor: '#f3f4f6',
+                  color: '#374151',
+                }}
               >
                 <Upload size={20} />
                 <span>上传照片</span>
               </button>
             </div>
           ) : (
-            <div style={uploadContainerStyle}>
-              <p style={{color: '#047857', marginBottom: '15px'}}>正在启动摄像头...</p>
-            </div>
+            <>
+              {cameraError ? (
+                <div style={{
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: '#ef4444'
+                }}>
+                  <p>无法访问相机。请检查您的相机权限或尝试上传照片。</p>
+                  <button 
+                    onClick={() => setCameraActive(false)}
+                    style={{
+                      marginTop: '15px',
+                      padding: '8px 16px',
+                      backgroundColor: '#047857',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    返回
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div style={{
+                    width: '100%',
+                    position: 'relative',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '2px solid #047857',
+                    backgroundColor: '#000'
+                  }}>
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        display: 'block',
+                        transform: facingMode === 'user' ? 'scaleX(-1)' : 'none'
+                      }}
+                    />
+                    <button 
+                      onClick={toggleCamera}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                        color: '#047857',
+                        borderRadius: '50%',
+                        width: '40px',
+                        height: '40px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: 'none',
+                        cursor: 'pointer',
+                        zIndex: 10
+                      }}
+                      title="切换摄像头"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 4h18M3 8h18M3 12h18M3 16h18M3 20h18"></path>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <div style={{
+                    display: 'flex',
+                    gap: '10px',
+                    marginTop: '15px'
+                  }}>
+                    <button 
+                      onClick={capturePhoto}
+                      style={{
+                        padding: '12px 30px',
+                        borderRadius: '8px',
+                        backgroundColor: '#047857',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '16px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      拍照
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setCameraActive(false)
+                        stopCamera()
+                      }}
+                      style={{
+                        padding: '12px 20px',
+                        borderRadius: '8px',
+                        backgroundColor: '#4b5563',
+                        color: 'white',
+                        border: 'none',
+                        fontSize: '16px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
           )}
         </>
       )}
 
       {previewUrl && (
-        <div style={previewContainerStyle}>
+        <div style={{
+          width: '100%',
+          marginTop: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px'
+        }}>
           <img
             src={previewUrl}
             alt="Preview"
-            style={imagePreviewStyle}
+            style={{
+              width: '100%',
+              maxHeight: '400px',
+              objectFit: 'contain',
+              borderRadius: '8px',
+              border: '2px solid #047857'
+            }}
           />
           
-          <div style={buttonContainerStyle}>
+          <div style={{
+            display: 'flex',
+            gap: '15px'
+          }}>
             <button 
               onClick={() => {
-                setPreviewUrl(null);
-                setImageFile(null);
-                startCamera();
+                setPreviewUrl(null)
+                setImageFile(null)
               }}
               style={{
-                ...actionButtonStyle,
-                backgroundColor: '#4b5563' // Gray color
+                padding: '12px 20px',
+                borderRadius: '8px',
+                backgroundColor: '#4b5563',
+                color: 'white',
+                border: 'none',
+                fontSize: '16px',
+                cursor: 'pointer'
               }}
             >
               重拍
@@ -299,7 +372,16 @@ function TonguePhoto() {
             
             <button 
               onClick={handleSubmit}
-              style={actionButtonStyle}
+              style={{
+                padding: '12px 30px',
+                borderRadius: '8px',
+                backgroundColor: '#047857',
+                color: 'white',
+                border: 'none',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
             >
               继续
             </button>

@@ -171,18 +171,19 @@ function FeelingInput() {
             </div>
           ))}
           
-          <div 
-            style={showCustomInput ? selectedOptionStyle : optionStyle}
-            onClick={() => setShowCustomInput(true)}
-          >
-            <div style={optionTextStyle}>
-              <span>另外</span>
-              <span style={translationStyle}>Other symptoms</span>
-            </div>
-            {showCustomInput && (
-              <span style={checkmarkStyle}>✓</span>
-            )}
-          </div>
+          // Update the onClick handler for the "另外" option
+<div 
+  style={showCustomInput ? selectedOptionStyle : optionStyle}
+  onClick={() => setShowCustomInput(!showCustomInput)}
+>
+  <div style={optionTextStyle}>
+    <span>另外</span>
+    <span style={translationStyle}>Other symptoms</span>
+  </div>
+  {showCustomInput && (
+    <span style={checkmarkStyle}>✓</span>
+  )}
+</div>
         </div>
         
         {showCustomInput && (
