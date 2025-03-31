@@ -7,6 +7,7 @@ function TonguePhoto() {
   const [previewUrl, setPreviewUrl] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState(false)
+  const [processingError, setProcessingError] = useState(null)
   const [permissionRequested, setPermissionRequested] = useState(false)
   const fileInputRef = useRef(null)
   const videoRef = useRef(null)
@@ -14,27 +15,54 @@ function TonguePhoto() {
   const navigate = useNavigate()
   
   // Camera controls
-  const [facingMode, setFacingMode] = useState('user') // 'user' for front camera, 'environment' for back camera
+  const [facingMode, setFacingMode] = useState('environment') // Start with back camera by default
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      setImageFile(file)
-      setPreviewUrl(URL.createObjectURL(file))
-      setCameraActive(false)
-      stopCamera()
+    try {
+      const file = e.target.files[0]
+      if (file) {
+        setImageFile(file)
+        setPreviewUrl(URL.createObjectURL(file))
+        setCameraActive(false)
+        stopCamera()
+      }
+    } catch (err) {
+      console.error('Error handling file:', err)
+      setProcessingError('处理上传的图像时出错。请重试。')
     }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setProcessingError(null)
+    
     if (imageFile) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        localStorage.setItem('tongueImage', reader.result)
-        navigate('/results')
+      try {
+        const reader = new FileReader()
+        
+        reader.onloadend = () => {
+          try {
+            const result = reader.result
+            localStorage.setItem('tongueImage', result)
+            navigate('/results')
+          } catch (error) {
+            console.error('Error in reader.onloadend:', error)
+            setProcessingError('无法处理图像。请重试。')
+          }
+        }
+        
+        reader.onerror = () => {
+          console.error('FileReader error:', reader.error)
+          setProcessingError('读取图像时出错。请重试。')
+        }
+        
+        reader.readAsDataURL(imageFile)
+      } catch (err) {
+        console.error('Error in handleSubmit:', err)
+        setProcessingError('处理图像时出错。请重试。')
       }
-      reader.readAsDataURL(imageFile)
+    } else {
+      setProcessingError('请先拍照或上传照片')
     }
   }
 
@@ -42,6 +70,7 @@ function TonguePhoto() {
   const requestCameraPermission = async () => {
     try {
       setPermissionRequested(true)
+      setProcessingError(null)
       
       // Just request permission without starting the stream yet
       await navigator.mediaDevices.getUserMedia({ video: true })
@@ -124,39 +153,68 @@ function TonguePhoto() {
       return;
     }
     
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const context = canvas.getContext('2d')
-    
-    // Check if video is playing and has dimensions
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      console.log('Video dimensions not available yet, waiting...');
-      setTimeout(capturePhoto, 100);
-      return;
-    }
-    
-    console.log(`Capturing photo from video: ${video.videoWidth}x${video.videoHeight}`);
-    
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    
-    // Convert canvas to blob
-    canvas.toBlob((blob) => {
-      if (blob) {
-        console.log('Photo captured as blob:', blob.size, 'bytes');
-        const file = new File([blob], "tongue-photo.png", { type: "image/png" })
-        setImageFile(file)
-        setPreviewUrl(URL.createObjectURL(file))
-        setCameraActive(false)
-        stopCamera()
-      } else {
-        console.error('Failed to create blob from canvas');
+    try {
+      setProcessingError(null)
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext('2d')
+      
+      // Check if video is playing and has dimensions
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.log('Video dimensions not available yet, waiting...');
+        setTimeout(capturePhoto, 100);
+        return;
       }
-    }, 'image/png', 0.9) // Higher quality for medical analysis
+      
+      console.log(`Capturing photo from video: ${video.videoWidth}x${video.videoHeight}`);
+      
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      
+      // Draw video frame to canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      // Try to directly set the preview from canvas
+      try {
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+        setPreviewUrl(dataUrl)
+        
+        // Create a file from the data URL
+        fetch(dataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], "tongue-photo.jpg", { type: "image/jpeg" })
+            setImageFile(file)
+            setCameraActive(false)
+            stopCamera()
+          })
+          .catch(err => {
+            console.error('Error creating file from data URL:', err)
+            setProcessingError('处理照片时出错。请重试。')
+          })
+      } catch (err) {
+        console.error('Error converting canvas to data URL:', err)
+        
+        // Fallback to toBlob method
+        canvas.toBlob((blob) => {
+          if (blob) {
+            console.log('Photo captured as blob:', blob.size, 'bytes');
+            const file = new File([blob], "tongue-photo.jpg", { type: "image/jpeg" })
+            setImageFile(file)
+            setPreviewUrl(URL.createObjectURL(blob))
+            setCameraActive(false)
+            stopCamera()
+          } else {
+            console.error('Failed to create blob from canvas');
+            setProcessingError('创建照片文件失败。请重试。')
+          }
+        }, 'image/jpeg', 0.8)
+      }
+    } catch (err) {
+      console.error('Error in capturePhoto:', err)
+      setProcessingError('拍照时出错。请重试。')
+    }
   }
 
   return (
@@ -175,6 +233,20 @@ function TonguePhoto() {
         marginBottom: '20px',
         textAlign: 'center'
       }}>舌诊分析</h2>
+      
+      {processingError && (
+        <div style={{
+          padding: '10px 15px',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          color: '#ef4444',
+          borderRadius: '8px',
+          width: '100%',
+          textAlign: 'center',
+          fontSize: '14px'
+        }}>
+          {processingError}
+        </div>
+      )}
       
       {!previewUrl && (
         <>
@@ -224,7 +296,6 @@ function TonguePhoto() {
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 accept="image/*"
-                capture="environment"
                 style={{ display: 'none' }}
               />
               
@@ -389,6 +460,7 @@ function TonguePhoto() {
                 setPreviewUrl(null)
                 setImageFile(null)
                 setPermissionRequested(false)
+                setProcessingError(null)
               }}
               style={{
                 padding: '12px 20px',
