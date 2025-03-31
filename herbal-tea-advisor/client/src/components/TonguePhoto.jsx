@@ -24,64 +24,89 @@ function TonguePhoto() {
   }
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setProcessingError(null)
+    e.preventDefault();
+    setProcessingError(null);
     
     if (imageFile) {
       try {
-        // Create a new canvas to resize the image
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const img = new Image();
+        // Create a smaller image for localStorage
+        const maxSize = 800; // Max width/height
+        const maxBytes = 900 * 1024; // ~900KB max
         
+        const img = new Image();
         img.onload = () => {
           try {
-            // Calculate new dimensions (max 800px width/height)
+            // Start with original dimensions
             let width = img.width;
             let height = img.height;
-            const maxSize = 800;
+            let quality = 0.7;
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
             
-            if (width > height && width > maxSize) {
-              height = Math.round((height * maxSize) / width);
-              width = maxSize;
-            } else if (height > maxSize) {
-              width = Math.round((width * maxSize) / height);
-              height = maxSize;
+            // Resize if needed
+            if (width > maxSize || height > maxSize) {
+              if (width > height) {
+                height = Math.round((height * maxSize) / width);
+                width = maxSize;
+              } else {
+                width = Math.round((width * maxSize) / height);
+                height = maxSize;
+              }
             }
             
-            // Resize image
+            // Set canvas size & draw image
             canvas.width = width;
             canvas.height = height;
             ctx.drawImage(img, 0, 0, width, height);
             
-            // Convert to smaller JPEG (quality 0.7)
-            const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            // Try compressing until size is acceptable
+            let dataUrl = canvas.toDataURL('image/jpeg', quality);
             
-            // Store and navigate
-            localStorage.setItem('tongueImage', resizedDataUrl);
-            navigate('/results');
-          } catch (error) {
-            console.error('Error processing image:', error);
+            // Check size and decrease quality if too large
+            while (dataUrl.length > maxBytes && quality > 0.2) {
+              quality -= 0.1;
+              dataUrl = canvas.toDataURL('image/jpeg', quality);
+            }
+            
+            console.log(`Image processed: ${width}x${height}, quality: ${quality}, size: ~${Math.round(dataUrl.length/1024)}KB`);
+            
+            // Store the image and feeling data
+            try {
+              localStorage.setItem('tongueImage', dataUrl);
+              console.log("Image stored in localStorage");
+              
+              // Verify that we can retrieve the stored data
+              const storedImage = localStorage.getItem('tongueImage');
+              if (!storedImage) {
+                throw new Error("Failed to retrieve image from localStorage after storing");
+              }
+              
+              // Navigate to results
+              navigate('/results');
+            } catch (storageError) {
+              console.error("LocalStorage error:", storageError);
+              setProcessingError('存储图像时出错。图像可能太大，请重试。');
+            }
+          } catch (processError) {
+            console.error("Image processing error:", processError);
             setProcessingError('处理图像时出错。请重试。');
           }
         };
         
         img.onerror = () => {
-          console.error('Error loading image');
+          console.error("Failed to load image");
           setProcessingError('加载图像失败。请重试。');
         };
         
-        // Load the image from the file
         img.src = previewUrl;
-        
       } catch (err) {
-        console.error('Error in handleSubmit:', err)
-        setProcessingError('处理图像时出错。请重试。')
+        console.error('General submit error:', err);
+        setProcessingError('提交图像时出错。请重试。');
       }
     } else {
-      setProcessingError('请先拍照')
+      setProcessingError('请先拍照');
     }
-  }
+  };
 
   return (
     <div style={{

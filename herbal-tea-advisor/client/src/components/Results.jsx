@@ -373,17 +373,26 @@ function Results() {
   useEffect(() => {
     const analyzeData = async () => {
       try {
-        const userFeeling = localStorage.getItem('userFeeling')
-        const tongueImageData = localStorage.getItem('tongueImage')
-
-        if (!userFeeling || !tongueImageData) {
-          throw new Error('Missing required information')
+        const userFeeling = localStorage.getItem('userFeeling');
+        const tongueImage = localStorage.getItem('tongueImage');
+  
+        console.log("UserFeeling data size:", userFeeling?.length || 0);
+        console.log("TongueImage data size:", tongueImage?.length || 0);
+  
+        if (!userFeeling) {
+          throw new Error('Missing user feeling information');
         }
-
-        // Store the tongue image for displaying
-        setTongueImage(tongueImageData)
-
+        
+        if (!tongueImage) {
+          throw new Error('Missing tongue image');
+        }
+        
+        if (tongueImage.length > 5000000) {
+          throw new Error('Image too large (>5MB)');
+        }
+  
         // Make a request to our backend API
+        console.log("Sending API request...");
         const response = await fetch(`${API_BASE_URL}/analyze`, {
           method: 'POST',
           headers: {
@@ -391,28 +400,32 @@ function Results() {
           },
           body: JSON.stringify({
             userFeeling,
-            tongueImage: tongueImageData
+            tongueImage
           }),
-        })
-
+        });
+  
         // Check if response is ok
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || 'Error analyzing data');
+          console.error("API response error:", response.status, response.statusText);
+          const errorData = await response.text();
+          console.error("Error response body:", errorData);
+          throw new Error(errorData || `Error analyzing data: ${response.statusText}`);
         }
-
+  
+        console.log("Parsing API response...");
         const parsedAnalysis = await response.json();
         setAnalysis(parsedAnalysis);
+        console.log("Analysis data received and set");
       } catch (err) {
-        console.error('Analysis error:', err)
-        setError(err.message)
+        console.error('Analysis error details:', err);
+        setError(err.message || "Unknown error occurred");
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-
-    analyzeData()
-  }, [])
+    };
+  
+    analyzeData();
+  }, []);
 
   // Effect to draw the tongue analysis overlay when the image is loaded
   useEffect(() => {
