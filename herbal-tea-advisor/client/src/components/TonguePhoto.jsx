@@ -29,31 +29,57 @@ function TonguePhoto() {
     
     if (imageFile) {
       try {
-        const reader = new FileReader()
+        // Create a new canvas to resize the image
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
         
-        reader.onloadend = () => {
+        img.onload = () => {
           try {
-            const result = reader.result
-            localStorage.setItem('tongueImage', result)
-            navigate('/results')
+            // Calculate new dimensions (max 800px width/height)
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 800;
+            
+            if (width > height && width > maxSize) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else if (height > maxSize) {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+            
+            // Resize image
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convert to smaller JPEG (quality 0.7)
+            const resizedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            
+            // Store and navigate
+            localStorage.setItem('tongueImage', resizedDataUrl);
+            navigate('/results');
           } catch (error) {
-            console.error('Error in reader.onloadend:', error)
-            setProcessingError('无法处理图像。请重试。')
+            console.error('Error processing image:', error);
+            setProcessingError('处理图像时出错。请重试。');
           }
-        }
+        };
         
-        reader.onerror = () => {
-          console.error('FileReader error:', reader.error)
-          setProcessingError('读取图像时出错。请重试。')
-        }
+        img.onerror = () => {
+          console.error('Error loading image');
+          setProcessingError('加载图像失败。请重试。');
+        };
         
-        reader.readAsDataURL(imageFile)
+        // Load the image from the file
+        img.src = previewUrl;
+        
       } catch (err) {
         console.error('Error in handleSubmit:', err)
         setProcessingError('处理图像时出错。请重试。')
       }
     } else {
-      setProcessingError('请先拍照或上传照片')
+      setProcessingError('请先拍照')
     }
   }
 
