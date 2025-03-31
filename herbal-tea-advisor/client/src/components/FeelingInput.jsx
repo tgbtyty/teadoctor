@@ -171,7 +171,6 @@ function FeelingInput() {
             </div>
           ))}
           
-          // Update the onClick handler for the "另外" option
 <div 
   style={showCustomInput ? selectedOptionStyle : optionStyle}
   onClick={() => setShowCustomInput(!showCustomInput)}

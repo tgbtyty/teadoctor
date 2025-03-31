@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Upload } from 'lucide-react'
+import { Camera, Upload, RotateCw } from 'lucide-react'
 
 function TonguePhoto() {
   const [imageFile, setImageFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState(false)
+  const [permissionRequested, setPermissionRequested] = useState(false)
   const fileInputRef = useRef(null)
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
@@ -37,71 +38,104 @@ function TonguePhoto() {
     }
   }
 
-  // Initialize camera when component mounts
-  useEffect(() => {
-    if (cameraActive) {
-      startCamera()
-    }
-    
-    // Cleanup function to stop camera when component unmounts
-    return () => {
-      stopCamera()
-    }
-  }, [cameraActive, facingMode]) // Restart camera when facing mode changes or camera active state changes
-
-  const startCamera = async () => {
+  // Request camera permission explicitly
+  const requestCameraPermission = async () => {
     try {
+      setPermissionRequested(true)
+      
+      // Just request permission without starting the stream yet
+      await navigator.mediaDevices.getUserMedia({ video: true })
+      
+      // If we got here, permission was granted
+      setCameraActive(true)
       setCameraError(false)
-      stopCamera() // Stop any existing streams first
-      
-      // Try to access the camera with current facing mode
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: facingMode,
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        }
-      })
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
     } catch (err) {
-      console.error('Error accessing camera:', err)
+      console.error('Camera permission denied:', err)
       setCameraError(true)
-      setCameraActive(false)
     }
   }
+
+  // Initialize camera when component mounts or when camera should be active
+  useEffect(() => {
+    let mounted = true;
+    
+    if (cameraActive) {
+      const initCamera = async () => {
+        try {
+          setCameraError(false)
+          stopCamera() // Stop any existing streams first
+          
+          // Try to access the camera with current facing mode
+          const constraints = {
+            video: { 
+              facingMode: facingMode,
+              width: { ideal: 640 },
+              height: { ideal: 480 }
+            }
+          };
+          
+          console.log('Requesting camera with constraints:', constraints);
+          const stream = await navigator.mediaDevices.getUserMedia(constraints)
+          
+          if (mounted && videoRef.current) {
+            videoRef.current.srcObject = stream;
+            console.log('Camera stream set to video element');
+          }
+        } catch (err) {
+          console.error('Error accessing camera:', err)
+          if (mounted) {
+            setCameraError(true)
+          }
+        }
+      }
+      
+      initCamera();
+    }
+    
+    // Cleanup function to stop camera when component unmounts or camera becomes inactive
+    return () => {
+      mounted = false;
+      if (!cameraActive) {
+        stopCamera()
+      }
+    }
+  }, [cameraActive, facingMode])
   
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
+      console.log('Stopping camera tracks');
       const tracks = videoRef.current.srcObject.getTracks()
-      tracks.forEach(track => track.stop())
+      tracks.forEach(track => {
+        console.log('Stopping track:', track);
+        track.stop()
+      })
       videoRef.current.srcObject = null
     }
   }
 
   const toggleCamera = () => {
-    // First stop the current camera
-    stopCamera()
-    
     // Toggle facing mode
     setFacingMode(prevMode => prevMode === 'user' ? 'environment' : 'user')
   }
 
   const capturePhoto = () => {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current || !canvasRef.current) {
+      console.error('Video or canvas ref not available');
+      return;
+    }
     
     const video = videoRef.current
     const canvas = canvasRef.current
+    const context = canvas.getContext('2d')
     
-    // Wait until video is ready
-    if (video.readyState !== 4) {
-      setTimeout(capturePhoto, 100)
-      return
+    // Check if video is playing and has dimensions
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.log('Video dimensions not available yet, waiting...');
+      setTimeout(capturePhoto, 100);
+      return;
     }
     
-    const context = canvas.getContext('2d')
+    console.log(`Capturing photo from video: ${video.videoWidth}x${video.videoHeight}`);
     
     // Set canvas dimensions to match video
     canvas.width = video.videoWidth
@@ -113,13 +147,16 @@ function TonguePhoto() {
     // Convert canvas to blob
     canvas.toBlob((blob) => {
       if (blob) {
+        console.log('Photo captured as blob:', blob.size, 'bytes');
         const file = new File([blob], "tongue-photo.png", { type: "image/png" })
         setImageFile(file)
         setPreviewUrl(URL.createObjectURL(file))
         setCameraActive(false)
         stopCamera()
+      } else {
+        console.error('Failed to create blob from canvas');
       }
-    }, 'image/png')
+    }, 'image/png', 0.9) // Higher quality for medical analysis
   }
 
   return (
@@ -150,7 +187,7 @@ function TonguePhoto() {
               alignItems: 'center'
             }}>
               <button 
-                onClick={() => setCameraActive(true)}
+                onClick={requestCameraPermission}
                 style={{
                   width: '250px',
                   padding: '12px 20px',
@@ -187,6 +224,7 @@ function TonguePhoto() {
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 accept="image/*"
+                capture="environment"
                 style={{ display: 'none' }}
               />
               
@@ -210,118 +248,110 @@ function TonguePhoto() {
                 <Upload size={20} />
                 <span>上传照片</span>
               </button>
+              
+              {cameraError && permissionRequested && (
+                <div style={{
+                  marginTop: '15px',
+                  padding: '10px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  color: '#ef4444',
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  fontSize: '14px'
+                }}>
+                  无法访问相机。请检查权限设置或使用上传照片选项。
+                </div>
+              )}
             </div>
           ) : (
             <>
-              {cameraError ? (
-                <div style={{
-                  padding: '20px',
-                  textAlign: 'center',
-                  color: '#ef4444'
-                }}>
-                  <p>无法访问相机。请检查您的相机权限或尝试上传照片。</p>
-                  <button 
-                    onClick={() => setCameraActive(false)}
-                    style={{
-                      marginTop: '15px',
-                      padding: '8px 16px',
-                      backgroundColor: '#047857',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    返回
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div style={{
+              <div style={{
+                width: '100%',
+                position: 'relative',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                border: '2px solid #047857',
+                backgroundColor: '#000',
+                aspectRatio: '4/3'
+              }}>
+                <video 
+                  ref={videoRef} 
+                  autoPlay 
+                  playsInline
+                  muted
+                  style={{
                     width: '100%',
-                    position: 'relative',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    border: '2px solid #047857',
-                    backgroundColor: '#000'
-                  }}>
-                    <video 
-                      ref={videoRef} 
-                      autoPlay 
-                      playsInline 
-                      style={{
-                        width: '100%',
-                        height: 'auto',
-                        display: 'block',
-                        transform: facingMode === 'user' ? 'scaleX(-1)' : 'none'
-                      }}
-                    />
-                    <button 
-                      onClick={toggleCamera}
-                      style={{
-                        position: 'absolute',
-                        top: '10px',
-                        right: '10px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                        color: '#047857',
-                        borderRadius: '50%',
-                        width: '40px',
-                        height: '40px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: 'none',
-                        cursor: 'pointer',
-                        zIndex: 10
-                      }}
-                      title="切换摄像头"
-                    >
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M3 4h18M3 8h18M3 12h18M3 16h18M3 20h18"></path>
-                      </svg>
-                    </button>
-                  </div>
-                  
-                  <div style={{
+                    height: '100%',
+                    objectFit: 'cover',
+                    transform: facingMode === 'user' ? 'scaleX(-1)' : 'none'
+                  }}
+                />
+                <button 
+                  onClick={toggleCamera}
+                  style={{
+                    position: 'absolute',
+                    top: '10px',
+                    right: '10px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    color: '#047857',
+                    borderRadius: '50%',
+                    width: '40px',
+                    height: '40px',
                     display: 'flex',
-                    gap: '10px',
-                    marginTop: '15px'
-                  }}>
-                    <button 
-                      onClick={capturePhoto}
-                      style={{
-                        padding: '12px 30px',
-                        borderRadius: '8px',
-                        backgroundColor: '#047857',
-                        color: 'white',
-                        border: 'none',
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      拍照
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setCameraActive(false)
-                        stopCamera()
-                      }}
-                      style={{
-                        padding: '12px 20px',
-                        borderRadius: '8px',
-                        backgroundColor: '#4b5563',
-                        color: 'white',
-                        border: 'none',
-                        fontSize: '16px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      取消
-                    </button>
-                  </div>
-                </>
-              )}
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    cursor: 'pointer',
+                    zIndex: 10
+                  }}
+                  title="切换摄像头"
+                >
+                  <RotateCw size={20} />
+                </button>
+              </div>
+              
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                marginTop: '15px',
+                width: '100%',
+                justifyContent: 'center'
+              }}>
+                <button 
+                  onClick={capturePhoto}
+                  style={{
+                    padding: '12px 30px',
+                    borderRadius: '8px',
+                    backgroundColor: '#047857',
+                    color: 'white',
+                    border: 'none',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    flex: '1',
+                    maxWidth: '200px'
+                  }}
+                >
+                  拍照
+                </button>
+                <button 
+                  onClick={() => {
+                    setCameraActive(false)
+                    stopCamera()
+                  }}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    backgroundColor: '#4b5563',
+                    color: 'white',
+                    border: 'none',
+                    fontSize: '16px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  取消
+                </button>
+              </div>
             </>
           )}
         </>
@@ -350,12 +380,15 @@ function TonguePhoto() {
           
           <div style={{
             display: 'flex',
-            gap: '15px'
+            gap: '15px',
+            width: '100%',
+            justifyContent: 'center'
           }}>
             <button 
               onClick={() => {
                 setPreviewUrl(null)
                 setImageFile(null)
+                setPermissionRequested(false)
               }}
               style={{
                 padding: '12px 20px',
@@ -380,7 +413,9 @@ function TonguePhoto() {
                 border: 'none',
                 fontSize: '16px',
                 fontWeight: 'bold',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flex: '1',
+                maxWidth: '200px'
               }}
             >
               继续
