@@ -3,6 +3,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tea Guru</title>
+    <link rel="stylesheet" href="/assets/index-C52n6kra.css">
     <style>
       body {
         margin: 0;
@@ -50,27 +51,11 @@
     <div id="root"></div>
     
     <div class="loading-screen">
-      <img src="/assets/Justtree.png" alt="Tea Guru Logo" class="logo">
+      <img src="/assets/Justtree-DWaj2fB6.png" alt="Tea Guru Logo" class="logo">
       <h1 class="loading-text">Tea Guru 加载中<span class="loading-dots"></span></h1>
       <p id="loading-status">正在加载应用...</p>
     </div>
-
-    <script>
-      // Simple script to load the main app with a timeout
-      setTimeout(function() {
-        var script = document.createElement('script');
-        script.type = 'module';
-        script.src = '/assets/index-DwLgKEtH.js';
-        document.body.appendChild(script);
-      }, 1000);
-
-      // Show a delayed message if the app doesn't load quickly
-      setTimeout(function() {
-        if (document.getElementById('root').childNodes.length === 0) {
-          document.getElementById('loading-status').textContent = 
-            '加载时间较长，请继续等待...';
-        }
-      }, 10000);
-    </script>
+    
+    <script type="module" src="/assets/index-DwLgKEtH.js"></script>
   </body>
 </html>
