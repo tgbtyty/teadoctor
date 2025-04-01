@@ -374,20 +374,23 @@ function Results() {
     const analyzeData = async () => {
       try {
         const userFeeling = localStorage.getItem('userFeeling');
-        const tongueImage = localStorage.getItem('tongueImage');
+        const tongueImageData = localStorage.getItem('tongueImage');
   
         console.log("UserFeeling data size:", userFeeling?.length || 0);
-        console.log("TongueImage data size:", tongueImage?.length || 0);
+        console.log("TongueImage data size:", tongueImageData?.length || 0);
+  
+        // Set the tongue image state
+        setTongueImage(tongueImageData);
   
         if (!userFeeling) {
           throw new Error('Missing user feeling information');
         }
         
-        if (!tongueImage) {
+        if (!tongueImageData) {
           throw new Error('Missing tongue image');
         }
         
-        if (tongueImage.length > 5000000) {
+        if (tongueImageData.length > 5000000) {
           throw new Error('Image too large (>5MB)');
         }
   
@@ -400,7 +403,7 @@ function Results() {
           },
           body: JSON.stringify({
             userFeeling,
-            tongueImage
+            tongueImage: tongueImageData
           }),
         });
   
@@ -481,13 +484,13 @@ function Results() {
       {/* Tongue Diagnosis Box */}
       <div style={tongueBoxStyle}>
         <div style={tongueOverlayContainerStyle} id="tongue-overlay-container">
-          <img 
-            ref={tongueImageRef}
-            src={tongueImage} 
-            alt="Tongue Image" 
-            style={tongueImageStyle}
-            onLoad={() => setImageLoaded(true)}
-          />
+        <img 
+  ref={tongueImageRef}
+  src={tongueImage} 
+  alt="Tongue Image" 
+  style={tongueImageStyle}
+  onLoad={() => setImageLoaded(true)}
+/>
           <canvas 
             ref={tongueCanvasRef}
             style={tongueCanvasStyle}
