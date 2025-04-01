@@ -20,13 +20,27 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 // Configure CORS
 app.use(cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      // or any origin
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps)
+    if (!origin) return callback(null, true);
+    
+    // Allow specific origins
+    const allowedOrigins = [
+      'http://159.223.75.46',
+      'http://localhost:5173'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
       callback(null, true);
-    },
-    credentials: true
-  }));
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(null, true); // Allow all origins for now to debug
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Security middleware
 app.use(helmet());
